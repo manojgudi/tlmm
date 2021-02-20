@@ -39,9 +39,8 @@ _TODO:_
 * Replace Arduino Uno to Arduino Mini Pro.
 * Clean up the code.
 
-Shield: [![CC BY 4.0][cc-by-shield]][cc-by]
 
-This work is licensed under a
-[Creative Commons Attribution 4.0 International License][cc-by].
+###### License
 
-[cc-by]: http://creativecommons.org/licenses/by/4.0/
+ [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+
