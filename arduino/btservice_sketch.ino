@@ -1,11 +1,17 @@
 #include <SoftwareSerial.h>
 SoftwareSerial EEBlue(10, 11); // RX | TX
 
+// Soft Reset the Arduino
+void(* resetFunc) (void) = 0; //declare reset function @ address 0
+
 int SWITCH_PIN = 7;
+int RST_PIN = 3;
+
 int LED_OUT = 13;
 int RED_LED = 6;
 int GREEN_LED = 5;
 int YELLOW_LED = 4;
+
 
 // Messge Codes
 const char* HELLO_WORLD      = "11\n";
@@ -14,6 +20,9 @@ const String HELLO_WORLD_ACK  = "12";
 const char* BUTTON_PRESS = "21\n";
 const String BUTTON_PRESS_MUTE_ACK   = "22";
 const String BUTTON_PRESS_UNMUTE_ACK = "23";
+
+const char* RST_BUTTON_PRESS = "31\n";
+const String RST_BUTTON_PRESS_ACK = "32";
 
 // received code
 String receivedCode;
@@ -28,12 +37,17 @@ boolean isMuted;
 void setup()
 {
   pinMode(SWITCH_PIN, INPUT_PULLUP);
+  pinMode(RST_PIN, INPUT_PULLUP);
   pinMode(LED_OUT, OUTPUT);
   pinMode(RED_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
   pinMode(YELLOW_LED, OUTPUT);
 
+  // PIN set to high on boot
   digitalWrite(SWITCH_PIN, 1);
+  digitalWrite(RST_PIN, 1);
+
+  // LED default low
   digitalWrite(LED_OUT, 0);
   digitalWrite(RED_LED, 0);
   digitalWrite(GREEN_LED, 0);
@@ -76,10 +90,11 @@ void loop()
     bootComplete = true;
     Serial.println("Hardware Latched");
     blink(RED_LED, 4, 100);
-
   }
 
   int switchPinValue = digitalRead(SWITCH_PIN);
+  int resetPinValue  = digitalRead(RST_PIN);
+
   if (switchPinValue == 0){
     Serial.println("The Switch Has Been Pressed");
     digitalWrite(SWITCH_PIN, 1);
@@ -106,7 +121,24 @@ void loop()
 
     }
 
-  }
+  } 
+  else if (resetPinValue == 0){
+    Serial.println("Reset Switch Has Been Pressed");
+    digitalWrite(RST_PIN, 1);
+    EEBlue.write(RST_BUTTON_PRESS);
+
+    // debounce
+    delay(800);
+    receivedCode = receivedBTMessage(EEBlue);
+//    if (receivedCode == RST_BUTTON_PRESS_ACK){
+
+      Serial.println("Software reset successfully");
+      blink(RED_LED, 2, 100);
+      resetFunc(); // Call Reset
+
+  //  }
+  } 
+
 }
 
 /*
