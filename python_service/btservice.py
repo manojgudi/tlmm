@@ -110,7 +110,7 @@ def main():
     isMute = True
     while (isHardwareLatched):
         readData = readLine(serialObject)
-        print("READ Data", readData)
+        #print("READ Data", readData)
         if readData == BUTTON_PRESS:
             successful, error = toggleMuteButton(platform)
             if successful:
