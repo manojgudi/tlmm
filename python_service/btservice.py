@@ -1,6 +1,7 @@
 import osascript
 import serial
 import time
+import traceback
 
 from sys import platform
 
@@ -9,7 +10,10 @@ HELLO_WORLD_ACK = "12"
 BUTTON_PRESS    = "21\n"
 BUTTON_PRESS_MUTE_ACK   = "22"
 BUTTON_PRESS_UNMUTE_ACK = "23"
+RST_BUTTON_PRESS = "31\n"
+RST_BUTTON_PRESS_ACK = "32";
 ERROR_ACK = "99"
+SLEEP_MS = 0.5 # 500ms
 
 def toString(byteString):
     return byteString.decode(encoding='UTF-8')
@@ -18,6 +22,7 @@ def readLine(serialObject):
     try:
         return toString(serialObject.readline())
     except:
+        traceback.print_exc()
         return False
 
 def openSerialObject(port,baud=9600, timeout=2):
@@ -59,11 +64,15 @@ def toggleMuteButton(platform):
     if platform in ['linux', 'linux2']:
         pass
 
+def writeLine(serialObject, flag):
+    return serialObject.write(bytes(flag, 'utf-8'))
+
+
 def writeButtonAck(isMute, serialObject):
     if isMute:
-        serialObject.write(bytes(BUTTON_PRESS_MUTE_ACK,'utf-8'))
+        writeLine(serialObject, BUTTON_PRESS_MUTE_ACK)
     else:
-        serialObject.write(bytes(BUTTON_PRESS_UNMUTE_ACK,'utf-8'))
+        writeLine(serialObject, BUTTON_PRESS_UNMUTE_ACK)
 
 
 def main():
@@ -79,7 +88,7 @@ def main():
             if not serialObject:
                 print("Error opening serial object %s"%port)
 
-            time.sleep(0.5)
+            time.sleep(SLEEP_MS)
 
     receivedHW = False
     readData   = readLine(serialObject)
@@ -87,21 +96,21 @@ def main():
     # Wait for handshake signal from HC05
     while (readData != HELLO_WORLD):
         readData = readLine(serialObject)
-        time.sleep(1)
+        time.sleep(SLEEP_MS)
         print("Waiting for initial data ", readData)
 
     # Send Acknowledgement signal
     serialObject.write(bytes(HELLO_WORLD_ACK,'utf-8'))
-    receiveHW = True
-
     print("HW latched, ready to use")
+    isHardwareLatched = True
  
     # Go to listening mode
     # Assumes the call starts with mute
     count = 0
     isMute = True
-    while (True):
+    while (isHardwareLatched):
         readData = readLine(serialObject)
+        print("READ Data", readData)
         if readData == BUTTON_PRESS:
             successful, error = toggleMuteButton(platform)
             if successful:
@@ -110,15 +119,28 @@ def main():
                 writeButtonAck(isMute, serialObject)               
                 print("Successfully Toggled: isMute? %s | shouldBeMuted? %s "%(isMute, 
                         shouldItBeMute(count)))
+
             else:
                 serialObject.write(bytes(ERROR_ACK,'utf-8'))
                 print("Error Muting", error)
 
-        # Shortmode before checking for bluetooth serial buffer
-        time.sleep(0.5)
+        elif readData == RST_BUTTON_PRESS:
+            print("Reseting the systems by releasing latch")
+            writeLine(serialObject, RST_BUTTON_PRESS_ACK)
+            isHardwareLatched = False
+
+        # For the condition when Software is latched but the  hardware reset and sending HELLO_WORLD
+        elif readData == HELLO_WORLD:
+            print("Latched incorrectly, releasing latch")
+            isHardwareLatched = False
+
+        # Short wait before checking for bluetooth serial buffer
+        time.sleep(SLEEP_MS)
 
 
 
 if __name__ == "__main__":
-    main()
+    while True:
+        main()
+        time.sleep(SLEEP_MS)
 
